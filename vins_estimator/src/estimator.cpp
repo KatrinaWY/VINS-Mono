@@ -94,11 +94,12 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
     {
         pre_integrations[frame_count] = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
     }
+
     if (frame_count != 0)
     {
-        pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity);
+        pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity); // 预积分做前向计算
         //if(solver_flag != NON_LINEAR)
-            tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity);
+            tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity);  // 为什么有两个预积分？
 
         dt_buf[frame_count].push_back(dt);
         linear_acceleration_buf[frame_count].push_back(linear_acceleration);
@@ -113,6 +114,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
         Ps[j] += dt * Vs[j] + 0.5 * dt * dt * un_acc;
         Vs[j] += dt * un_acc;
     }
+    
     acc_0 = linear_acceleration;
     gyr_0 = angular_velocity;
 }

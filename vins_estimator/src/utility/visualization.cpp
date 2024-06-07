@@ -41,7 +41,7 @@ void registerPub(ros::NodeHandle &n)
     keyframebasevisual.setScale(0.1);
     keyframebasevisual.setLineWidth(0.01);
 }
-
+// ros发布PVQ
 void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, const std_msgs::Header &header)
 {
     Eigen::Quaterniond quadrotor_Q = Q ;
@@ -56,7 +56,7 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.pose.pose.orientation.y = quadrotor_Q.y();
     odometry.pose.pose.orientation.z = quadrotor_Q.z();
     odometry.pose.pose.orientation.w = quadrotor_Q.w();
-    odometry.twist.twist.linear.x = V.x();
+    odometry.twist.twist.linear.x = V.x();               // Q: 这个速度信息是怎么在rviz上体现的呢？
     odometry.twist.twist.linear.y = V.y();
     odometry.twist.twist.linear.z = V.z();
     pub_latest_odometry.publish(odometry);

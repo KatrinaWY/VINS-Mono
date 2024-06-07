@@ -1,5 +1,6 @@
 #include "parameters.h"
 
+// 下面的是对extern的声明变量的定义
 double INIT_DEPTH;
 double MIN_PARALLAX;
 double ACC_N, ACC_W;
@@ -38,7 +39,7 @@ T readParam(ros::NodeHandle &n, std::string name)
     }
     return ans;
 }
-
+// 读取config参数（ros读取）
 void readParameters(ros::NodeHandle &n)
 {
     std::string config_file;
@@ -51,18 +52,17 @@ void readParameters(ros::NodeHandle &n)
 
     fsSettings["imu_topic"] >> IMU_TOPIC;
 
-    SOLVER_TIME = fsSettings["max_solver_time"];
+    SOLVER_TIME    = fsSettings["max_solver_time"];
     NUM_ITERATIONS = fsSettings["max_num_iterations"];
-    MIN_PARALLAX = fsSettings["keyframe_parallax"];
-    MIN_PARALLAX = MIN_PARALLAX / FOCAL_LENGTH;
+    MIN_PARALLAX   = fsSettings["keyframe_parallax"];
+    MIN_PARALLAX   = MIN_PARALLAX / FOCAL_LENGTH;
 
     std::string OUTPUT_PATH;
     fsSettings["output_path"] >> OUTPUT_PATH;
     VINS_RESULT_PATH = OUTPUT_PATH + "/vins_result_no_loop.csv";
     std::cout << "result path " << VINS_RESULT_PATH << std::endl;
-
-    // create folder if not exists
-    FileSystemHelper::createDirectoryIfNotExists(OUTPUT_PATH.c_str());
+    
+    FileSystemHelper::createDirectoryIfNotExists(OUTPUT_PATH.c_str()); // 路径不存在就创建 
 
     std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
     fout.close();
@@ -76,8 +76,9 @@ void readParameters(ros::NodeHandle &n)
     COL = fsSettings["image_width"];
     ROS_INFO("ROW: %f COL: %f ", ROW, COL);
 
+    // 是否估计外参的标志： 2 表示没有外参提供，需要自己估计； 1表示外参给了，但是不准； 0表示外参很准！
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];
-    if (ESTIMATE_EXTRINSIC == 2)
+    if(ESTIMATE_EXTRINSIC == 2)
     {
         ROS_WARN("have no prior about extrinsic param, calibrate extrinsic param");
         RIC.push_back(Eigen::Matrix3d::Identity());
@@ -87,12 +88,12 @@ void readParameters(ros::NodeHandle &n)
     }
     else 
     {
-        if ( ESTIMATE_EXTRINSIC == 1)
+        if(ESTIMATE_EXTRINSIC == 1)
         {
             ROS_WARN(" Optimize extrinsic param around initial guess!");
             EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
         }
-        if (ESTIMATE_EXTRINSIC == 0)
+        if(ESTIMATE_EXTRINSIC == 0)
             ROS_WARN(" fix extrinsic param ");
 
         cv::Mat cv_R, cv_T;
