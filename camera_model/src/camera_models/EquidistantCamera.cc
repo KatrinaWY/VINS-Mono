@@ -420,6 +420,7 @@ EquidistantCamera::liftSphere(const Eigen::Vector2d& p, Eigen::Vector3d& P) cons
 
 /** 
  * \brief Lifts a point from the image plane to its projective ray
+ *        从2d点映射到3d点
  *
  * \param p image coordinates
  * \param P coordinates of the projective ray
@@ -427,7 +428,7 @@ EquidistantCamera::liftSphere(const Eigen::Vector2d& p, Eigen::Vector3d& P) cons
 void
 EquidistantCamera::liftProjective(const Eigen::Vector2d& p, Eigen::Vector3d& P) const
 {
-    // Lift points to normalised plane
+    // 将点弄到归一化平面   Lift points to normalised plane
     Eigen::Vector2d p_u;
     p_u << m_inv_K11 * p(0) + m_inv_K13,
            m_inv_K22 * p(1) + m_inv_K23;

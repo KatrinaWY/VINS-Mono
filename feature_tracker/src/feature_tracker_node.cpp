@@ -27,18 +27,18 @@ bool init_pub = 0;
 
 void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
-    if(first_image_flag)
+    if(first_image_flag)  // 如果是第一帧的话，只记录时间
     {
         first_image_flag = false;
         first_image_time = img_msg->header.stamp.toSec();
         last_image_time = img_msg->header.stamp.toSec();
         return;
     }
-    // detect unstable camera stream
+    // 处理时间戳错误以及严重丢帧的问题--将图像处理系统重置     detect unstable camera stream
     if (img_msg->header.stamp.toSec() - last_image_time > 1.0 || img_msg->header.stamp.toSec() < last_image_time)
     {
         ROS_WARN("image discontinue! reset the feature tracker!");
-        first_image_flag = true; 
+        first_image_flag = true;  
         last_image_time = 0;
         pub_count = 1;
         std_msgs::Bool restart_flag;
@@ -46,12 +46,13 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         pub_restart.publish(restart_flag);
         return;
     }
+
     last_image_time = img_msg->header.stamp.toSec();
-    // frequency control
+    // 控制发布的频率不要太快   frequency control
     if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ)
     {
         PUB_THIS_FRAME = true;
-        // reset the frequency control
+        // 和上限频率非常接近的时候就重置一下  reset the frequency control
         if (abs(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ)
         {
             first_image_time = img_msg->header.stamp.toSec();
@@ -61,34 +62,35 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     else
         PUB_THIS_FRAME = false;
 
-    cv_bridge::CvImageConstPtr ptr;
-    if (img_msg->encoding == "8UC1")
+    cv_bridge::CvImageConstPtr ptr; // 用于ros图像和opencv的Mat的转换
+    if (img_msg->encoding == "8UC1")  // 灰度图   8位无符号单通道
     {
         sensor_msgs::Image img;
         img.header = img_msg->header;
         img.height = img_msg->height;
         img.width = img_msg->width;
-        img.is_bigendian = img_msg->is_bigendian;
+        img.is_bigendian = img_msg->is_bigendian;  // 数据是否是双端
         img.step = img_msg->step;
         img.data = img_msg->data;
-        img.encoding = "mono8";
+        img.encoding = "mono8";  // 编码方式--灰度图
         ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);
     }
     else
-        ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
+        ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);  // MONO8和8UC1的本质是一样的，只是出现的领域不同
 
     cv::Mat show_img = ptr->image;
     TicToc t_r;
+    // feature tracker读入图片
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         ROS_DEBUG("processing camera %d", i);
-        if (i != 1 || !STEREO_TRACK)
+        if (i != 1 || !STEREO_TRACK) // 如果是单目或者是第1个相机
             trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), img_msg->header.stamp.toSec());
         else
         {
             if (EQUALIZE)
             {
-                cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+                cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(); // CLAHE 是自适应直方图均衡
                 clahe->apply(ptr->image.rowRange(ROW * i, ROW * (i + 1)), trackerData[i].cur_img);
             }
             else
@@ -100,6 +102,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 #endif
     }
 
+    // 更新特征点id
     for (unsigned int i = 0;; i++)
     {
         bool completed = false;
@@ -110,6 +113,10 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             break;
     }
 
+    /* 如果发布这一帧的话：
+    // 1、将特征点id，矫正后归一化平面的3D点(x,y,z=1)，像素2D点(u,v)，像素的速度(vx,vy)，
+    // 封装成sensor_msgs::PointCloudPtr类型的feature_points实例中,发布到pub_img;
+    // 2、将图像封装到cv_bridge::cvtColor类型的ptr实例中发布到pub_match  */
    if (PUB_THIS_FRAME)
    {
         pub_count++;
@@ -203,6 +210,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     ROS_INFO("whole feature tracker processing costs: %f", t_r.toc());
 }
 
+// 独立节点： 用于接受原始图片后提取前段需要的特征数据
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "feature_tracker");
@@ -211,9 +219,9 @@ int main(int argc, char **argv)
     readParameters(n);
 
     for (int i = 0; i < NUM_OF_CAM; i++)
-        trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
+        trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);   // 读取每个相机的内参
 
-    if(FISHEYE)
+    if(FISHEYE) // 如果是鱼眼相机,需要一个mask，why????
     {
         for (int i = 0; i < NUM_OF_CAM; i++)
         {
@@ -230,7 +238,8 @@ int main(int argc, char **argv)
 
     ros::Subscriber sub_img = n.subscribe(IMAGE_TOPIC, 100, img_callback);
 
-    pub_img = n.advertise<sensor_msgs::PointCloud>("feature", 1000);
+    // 发布
+    pub_img = n.advertise<sensor_msgs::PointCloud>("feature", 1000);  // 图像特征以点云形式发出
     pub_match = n.advertise<sensor_msgs::Image>("feature_img",1000);
     pub_restart = n.advertise<std_msgs::Bool>("restart",1000);
     /*

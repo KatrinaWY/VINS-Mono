@@ -20,28 +20,31 @@ ProjectionFactor::ProjectionFactor(const Eigen::Vector3d &_pts_i, const Eigen::V
 
 bool ProjectionFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
 {
-    TicToc tic_toc;
+    TicToc tic_toc; 
+    // 第i帧的世界坐标
     Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
     Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
 
+    // 第j帧的世界坐标
     Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
     Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]);
 
+    // IMU与相机的外参
     Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]);
     Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
 
-    double inv_dep_i = parameters[3][0];
+    double inv_dep_i = parameters[3][0];                     // 第i帧相机坐标系下的的逆深度
 
-    Eigen::Vector3d pts_camera_i = pts_i / inv_dep_i;
-    Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
-    Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
-    Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
-    Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
+    Eigen::Vector3d pts_camera_i = pts_i / inv_dep_i;        // 第i帧相机坐标系下的3D坐标 
+    Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;    // 第i帧IMU坐标系下的3D坐标
+    Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;             // 第i帧世界坐标系下的3D坐标         
+    Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);          // 第j帧IMU坐标系下的3D坐标
+    Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic); // 第j帧相机坐标系下的3D坐标
     Eigen::Map<Eigen::Vector2d> residual(residuals);
 
-#ifdef UNIT_SPHERE_ERROR 
+#ifdef UNIT_SPHERE_ERROR // 单位球面上的误差
     residual =  tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
-#else
+#else // 针孔相机模型--构建残差
     double dep_j = pts_camera_j.z();
     residual = (pts_camera_j / dep_j).head<2>() - pts_j.head<2>();
 #endif

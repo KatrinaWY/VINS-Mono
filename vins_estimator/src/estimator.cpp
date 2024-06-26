@@ -7,18 +7,21 @@ Estimator::Estimator(): f_manager{Rs}
 }
 
 void Estimator::setParameter()
-{
+{   
+    // 设置相机外参
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         tic[i] = TIC[i];
         ric[i] = RIC[i];
     }
+
     f_manager.setRic(ric);
     ProjectionFactor::sqrt_info = FOCAL_LENGTH / 1.5 * Matrix2d::Identity();
     ProjectionTdFactor::sqrt_info = FOCAL_LENGTH / 1.5 * Matrix2d::Identity();
     td = TD;
 }
 
+// 将预积分器、相机位姿等量均做状态清零
 void Estimator::clearState()
 {
     for (int i = 0; i < WINDOW_SIZE + 1; i++)
@@ -34,6 +37,7 @@ void Estimator::clearState()
 
         if (pre_integrations[i] != nullptr)
             delete pre_integrations[i];
+
         pre_integrations[i] = nullptr;
     }
 
@@ -81,6 +85,7 @@ void Estimator::clearState()
     drift_correct_t = Vector3d::Zero();
 }
 
+// 使用IMU数据做预积分，然后用中值积分推算PVQ
 void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity)
 {
     if (!first_imu)
@@ -90,6 +95,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
         gyr_0 = angular_velocity;
     }
 
+    // 初始化预积分器
     if (!pre_integrations[frame_count])
     {
         pre_integrations[frame_count] = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
@@ -114,7 +120,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
         Ps[j] += dt * Vs[j] + 0.5 * dt * dt * un_acc;
         Vs[j] += dt * un_acc;
     }
-    
+
     acc_0 = linear_acceleration;
     gyr_0 = angular_velocity;
 }
@@ -667,7 +673,6 @@ bool Estimator::failureDetection()
     }
     return false;
 }
-
 
 void Estimator::optimization()
 {

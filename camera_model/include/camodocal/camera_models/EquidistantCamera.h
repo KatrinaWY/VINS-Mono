@@ -6,7 +6,10 @@
 
 #include "ceres/rotation.h"
 #include "Camera.h"
+/*
+    Equidistant是一种畸变模型
 
+*/
 namespace camodocal
 {
 

@@ -13,7 +13,7 @@
 #include "utility/visualization.h"
 
 
-Estimator estimator;
+Estimator estimator;  // 整个VINS的核心
 
 std::condition_variable con;
 double current_time = -1;
@@ -80,6 +80,7 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     gyr_0 = angular_velocity;
 }
 
+// 用估计器的状态量更新temp的，并且将tmp_imu里面的IMU全做predict
 void update()
 {
     TicToc t_predict;
@@ -198,7 +199,7 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
 
         m_buf.unlock();
         m_estimator.lock();
-        estimator.clearState();
+        estimator.clearState();    // 估计器状态清零
         estimator.setParameter();
         m_estimator.unlock();
         current_time = -1;
@@ -296,42 +297,44 @@ void process()
                 }
 
                 
-                Vector3d relo_t(relo_msg->channels[0].values[0], relo_msg->channels[0].values[1], relo_msg->channels[0].values[2]);
+                Vector3d relo_t(relo_msg->channels[0].values[0], relo_msg->channels[0].values[1], relo_msg->channels[0].values[2]); // 位置
                 Quaterniond relo_q(relo_msg->channels[0].values[3], relo_msg->channels[0].values[4], relo_msg->channels[0].values[5], relo_msg->channels[0].values[6]);
                 Matrix3d relo_r = relo_q.toRotationMatrix();  // 姿态
                 int frame_index;                              
                 frame_index = relo_msg->channels[0].values[7];// 帧号
-                estimator.setReloFrame(frame_stamp, frame_index, match_points, relo_t, relo_r); //
+                estimator.setReloFrame(frame_stamp, frame_index, match_points, relo_t, relo_r); // 暂时没看明白这个函数的具体作用
             }
 
             ROS_DEBUG("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
 
             TicToc t_s;
-            map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
+            map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image; // key对应特征ID，value对应不同相机对同一特征点的xyz、uz和速度（pair中的int就是相机ID）
             for (unsigned int i = 0; i < img_msg->points.size(); i++)
             {
                 int v = img_msg->channels[0].values[i] + 0.5;
-                int feature_id = v / NUM_OF_CAM;
-                int camera_id = v % NUM_OF_CAM;
-                double x = img_msg->points[i].x;
+                int feature_id = v / NUM_OF_CAM;   // 特征点ID
+                int camera_id = v % NUM_OF_CAM;    // 相机ID
+                double x = img_msg->points[i].x;              // 3维空间位置坐标
                 double y = img_msg->points[i].y;
                 double z = img_msg->points[i].z;
-                double p_u = img_msg->channels[1].values[i];
+                double p_u = img_msg->channels[1].values[i];       // 像素坐标
                 double p_v = img_msg->channels[2].values[i];
-                double velocity_x = img_msg->channels[3].values[i];
+                double velocity_x = img_msg->channels[3].values[i];    // 像素速度
                 double velocity_y = img_msg->channels[4].values[i];
                 ROS_ASSERT(z == 1);
                 Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
                 xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
                 image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
             }
-            estimator.processImage(image, img_msg->header);
+
+            estimator.processImage(image, img_msg->header);  // TODO: 
 
             double whole_t = t_s.toc();
             printStatistics(estimator, whole_t);
             std_msgs::Header header = img_msg->header;
             header.frame_id = "world";
 
+            /* 发布各种ROS信息 */
             pubOdometry(estimator, header);
             pubKeyPoses(estimator, header);
             pubCameraPose(estimator, header);
@@ -342,6 +345,7 @@ void process()
                 pubRelocalization(estimator);
             //ROS_ERROR("end: %f, at %f", img_msg->header.stamp.toSec(), ros::Time::now().toSec());
         }
+
         m_estimator.unlock();
         m_buf.lock();
         m_state.lock();

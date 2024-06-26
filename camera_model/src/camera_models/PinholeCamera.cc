@@ -453,18 +453,19 @@ PinholeCamera::liftProjective(const Eigen::Vector2d& p, Eigen::Vector3d& P) cons
     double rho2_d, rho4_d, radDist_d, Dx_d, Dy_d, inv_denom_d;
     //double lambda;
 
-    // Lift points to normalised plane
+    // 通过内参将uv换一下 Lift points to normalised plane
     mx_d = m_inv_K11 * p(0) + m_inv_K13;
     my_d = m_inv_K22 * p(1) + m_inv_K23;
 
+    // 如果没有畸变
     if (m_noDistortion)
     {
         mx_u = mx_d;
         my_u = my_d;
     }
-    else
+    else  // 否则，需要经过反向畸变模型：
     {
-        if (0)
+        if (0)   // 这个畸变模型是径向切向畸变模型的逆（Radtan）,貌似也不完全是
         {
             double k1 = mParameters.k1();
             double k2 = mParameters.k2();
@@ -488,7 +489,7 @@ PinholeCamera::liftProjective(const Eigen::Vector2d& p, Eigen::Vector3d& P) cons
         }
         else
         {
-            // Recursive distortion model
+            // ？？？？ 为什么会用正向模型？    Recursive distortion model
             int n = 8;
             Eigen::Vector2d d_u;
             distortion(Eigen::Vector2d(mx_d, my_d), d_u);
@@ -637,6 +638,7 @@ PinholeCamera::undistToPlane(const Eigen::Vector2d& p_u, Eigen::Vector2d& p) con
 }
 
 /**
+ * 正向畸变模型：
  * \brief Apply distortion to input point (from the normalised plane)
  *
  * \param p_u undistorted coordinates of point on the normalised plane

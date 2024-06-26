@@ -51,10 +51,10 @@ DataGenerator::DataGenerator()
     generator = default_random_engine(SEED);
     distribution = normal_distribution<double>(0.0, 1);
     Axis[0] = Vector3d(10, 0, 0);
-    Axis[1]= Vector3d(0, 10, 0);
+    Axis[1] = Vector3d(0, 10, 0);
     Axis[2] = Vector3d(0, 0, 10);
     Axis[3] = Vector3d(-10, 0, 0);
-    Axis[4]= Vector3d(0, -10, 0);
+    Axis[4] = Vector3d(0, -10, 0);
     Axis[5] = Vector3d(0, 0, -10);
 }
 
